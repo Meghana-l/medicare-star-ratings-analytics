@@ -1,5 +1,7 @@
 # Medicare Advantage Star Ratings: Policy Analytics
 
+Live: https://medicare-star-ratings-analytics-kappa.vercel.app/
+
 An interactive tool that shows how Medicare Advantage health plans earn their 1 to 5 star rating, and what it would take to earn the next star.
 
 **Why it matters:** the Centers for Medicare & Medicaid Services (CMS) rates every Medicare Advantage plan each year. Higher stars bring bonus payments and more members, so plans track exactly which measures are closest to the next star. This project rebuilds that calculation in the open, from CMS's public data.

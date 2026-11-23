@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Medicare Advantage Star Ratings: Policy Analytics</title>
+  <meta name="description" content="Rebuilds the CMS Part C and D Star Ratings methodology from public data, with gap-to-next-star analysis and data-quality checks.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script src="vendor/chart.umd.js"></script>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Medicare Advantage Star Ratings: Policy Analytics</h1>
+      <p class="sub">Rebuilds the CMS Part C &amp; D Star Ratings method from public data: raw measure scores, cut points, then stars. Includes gap-to-next-star analysis and data-quality checks.</p>
+    </div>
+  </header>
+
+  <div id="demo-banner" class="banner" hidden>
+    <div class="wrap"><strong>Sample data.</strong> The plans and scores shown are synthetic examples that demonstrate the tool. The calculation works the same way on CMS's public tables.</div>
+  </div>
+  <div id="est-banner" class="banner warn" hidden>
+    <div class="wrap"><strong>Cut points estimated.</strong> They were inferred from CMS's published stars, so the match rate below is not an independent check. Add the cut points from the Technical Notes to fix this.</div>
+  </div>
+
+  <nav class="wrap" id="tabs" role="tablist">
+    <button class="tab active" data-tab="overview">Overview</button>
+    <button class="tab" data-tab="scorecard">Plan scorecard</button>
+    <button class="tab" data-tab="gaps">Gap to next star</button>
+    <button class="tab" data-tab="dist">Distributions &amp; trends</button>
+    <button class="tab" data-tab="specs">Measure specs</button>
+    <button class="tab" data-tab="checks">Data checks</button>
+    <button class="tab" data-tab="method">Method</button>
+  </nav>
+
+  <main class="wrap">
+    <div id="plan-picker" class="picker" hidden>
+      <label for="contract">Plan (contract)</label>
+      <select id="contract"></select>
+    </div>
+
+    <section id="overview" class="panel active">
+      <div class="cards" id="overview-cards"></div>
+      <div class="grid2">
+        <div class="box"><h2>Plans by CMS overall rating</h2><div class="chartbox"><canvas id="chart-overall"></canvas></div></div>
+        <div class="box"><h2>Measure stars: rebuilt vs CMS</h2><div class="chartbox"><canvas id="chart-match"></canvas></div></div>
+      </div>
+    </section>
+
+    <section id="scorecard" class="panel">
+      <div class="cards" id="score-cards"></div>
+      <div class="box"><h2>Measure by measure</h2><div class="table-wrap"><table id="score-table"></table></div></div>
+    </section>
+
+    <section id="gaps" class="panel">
+      <div class="box">
+        <h2>What would move this plan up a star?</h2>
+        <p class="note">Each row is a measure below 5 stars. "Gap" is how far the score is from the next cut point. "Gap as % of band" compares measures on one scale: gap divided by the distance between the 2-star and 5-star cut points. Weight shows how much a star on that measure counts toward the overall rating.</p>
+        <div class="controls">
+          <label>Sort by
+            <select id="gap-sort">
+              <option value="close">Closest to next star</option>
+              <option value="weight">Highest weight first</option>
+            </select>
+          </label>
+        </div>
+        <div class="table-wrap"><table id="gap-table"></table></div>
+      </div>
+    </section>
+
+    <section id="dist" class="panel">
+      <div class="box">
+        <div class="controls">
+          <label>Measure <select id="measure-pick"></select></label>
+        </div>
+        <div class="grid2">
+          <div><h2>Where plans score</h2><div class="chartbox"><canvas id="chart-dist"></canvas></div>
+            <p class="note" id="dist-note"></p></div>
+          <div><h2>Cut points over time</h2><div class="chartbox"><canvas id="chart-trend"></canvas></div>
+            <p class="note" id="trend-note"></p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="specs" class="panel">
+      <div class="box">
+        <div class="controls">
+          <label>Source
+            <select id="spec-filter"><option value="">All</option></select>
+          </label>
+        </div>
+        <div id="spec-list" class="spec-list"></div>
+      </div>
+    </section>
+
+    <section id="checks" class="panel">
+      <div class="box">
+        <h2>Automated data-quality checks</h2>
+        <p class="note">These run every time the data is rebuilt. A failing check means the numbers should not be trusted until it is explained.</p>
+        <div id="check-list"></div>
+      </div>
+    </section>
+
+    <section id="method" class="panel">
+      <div class="box prose">
+        <h2>How the stars are rebuilt</h2>
+        <ol>
+          <li><strong>Raw score.</strong> Each plan has a score per measure (for example, the share of diabetic members with a controlled blood sugar). Scores come from HEDIS clinical measures, CAHPS and HOS member surveys, plan-reported administrative measures and Part D drug measures.</li>
+          <li><strong>Cut points.</strong> For each measure, CMS publishes four thresholds that turn a score into 1 to 5 stars. For most measures a higher score is better. For a few (complaints, members leaving, readmissions) lower is better, so the thresholds run the other way.</li>
+          <li><strong>Measure star.</strong> The SQL view <code>calc</code> compares each score with the thresholds and assigns a star. The Data checks tab compares this with the star CMS published.</li>
+          <li><strong>Overall rating.</strong> The weighted average of measure stars, using each measure's weight, rounded to the nearest half star (the <code>overall_calc</code> view).</li>
+          <li><strong>Gap to next star.</strong> The <code>gap_to_next</code> view measures how far each score is from the next threshold.</li>
+        </ol>
+        <h2>What this does not do</h2>
+        <ul>
+          <li>The overall rating here is a weighted average of measure stars. CMS also applies a reward factor and other adjustments, so overall ratings can differ slightly. Measure-level stars are the exact check.</li>
+          <li>It works at the contract level, using published scores. It does not use member-level HEDIS data, which plans hold and NCQA specifies.</li>
+          <li>Boundary rules (whether a score equal to a cut point rounds up) follow the common convention and are covered by tests.</li>
+        </ul>
+        <h2>Data</h2>
+        <p>Public Star Ratings data tables and Technical Notes published by the Centers for Medicare &amp; Medicaid Services (CMS). Independent project, not affiliated with CMS.</p>
+        <p id="meta-line" class="note"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="wrap">Built with Python, SQL (SQLite), and plain HTML/JS. Source and method are in the repository README.</div></footer>
+  <script src="app.js"></script>
+</body>
+</html>
